@@ -127,8 +127,7 @@ async def get_class_samples(request: Request, class_name: str):
     return {"samples": files}
 
 @app.post("/train")
-async def train_endpoint():
-    return await train_model()
+async def train_model():
     """
     Endpoint to trigger model training.
     """
