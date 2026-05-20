@@ -2,6 +2,7 @@ import os
 import uuid
 import shutil
 import pickle
+from fastapi import FastAPI, UploadFile, File, Form, Request
 from fastapi.staticfiles import StaticFiles
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,10 +13,19 @@ import torchvision.models as models
 from PIL import Image
 from sklearn.linear_model import LogisticRegression
 
+# Directories
+DATA_DIR = "backend_data"
+MODELS_DIR = os.path.join(DATA_DIR, "models")
+
+# Ensure base directories exist
+os.makedirs(DATA_DIR, exist_ok=True)
+os.makedirs(MODELS_DIR, exist_ok=True)
+
 app = FastAPI(title="Teachable Machine Backend")
 
 # Mount static files for sample images
 app.mount("/data", StaticFiles(directory=DATA_DIR), name="data")
+
 
 
 # Enable CORS for Streamlit
@@ -116,7 +126,9 @@ async def get_class_samples(request: Request, class_name: str):
             files.append(f"{base}/data/{class_name}/{f}")
     return {"samples": files}
 
-async def train_model():
+@app.post("/train")
+async def train_endpoint():
+    return await train_model()
     """
     Endpoint to trigger model training.
     """
