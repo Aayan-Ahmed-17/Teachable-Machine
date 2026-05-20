@@ -37,8 +37,7 @@ backbone.to(device)
 backbone.eval()
 
 preprocess = transforms.Compose([
-    transforms.Resize(256),
-    transforms.CenterCrop(224),
+    transforms.Resize((224, 224)),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
@@ -71,6 +70,31 @@ async def upload_sample(class_name: str = Form(...), image_data: UploadFile = Fi
         shutil.copyfileobj(image_data.file, buffer)
         
     return {"status": "success", "message": f"Image uploaded to {class_name}", "filename": unique_filename}
+
+@app.get("/classes/info")
+async def get_classes_info():
+    """
+    Get current classes and the number of samples in each.
+    """
+    classes_info = {}
+    if os.path.exists(DATA_DIR):
+        for d in os.listdir(DATA_DIR):
+            d_path = os.path.join(DATA_DIR, d)
+            if os.path.isdir(d_path) and d != "models":
+                num_samples = len([f for f in os.listdir(d_path) if os.path.isfile(os.path.join(d_path, f))])
+                classes_info[d] = num_samples
+    return {"classes": classes_info}
+
+@app.delete("/class/{class_name}")
+async def delete_class(class_name: str):
+    """
+    Delete a class directory and all its samples.
+    """
+    class_dir = os.path.join(DATA_DIR, class_name)
+    if os.path.exists(class_dir) and os.path.isdir(class_dir):
+        shutil.rmtree(class_dir)
+        return {"status": "success", "message": f"Class {class_name} deleted."}
+    return JSONResponse(status_code=404, content={"status": "error", "message": "Class not found."})
 
 @app.post("/train")
 async def train_model():

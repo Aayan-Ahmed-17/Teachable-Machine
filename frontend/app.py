@@ -16,6 +16,23 @@ if "classes" not in st.session_state:
 if "is_trained" not in st.session_state:
     st.session_state.is_trained = False
 
+def fetch_classes_info():
+    try:
+        resp = requests.get(f"{BACKEND_URL}/classes/info")
+        if resp.status_code == 200:
+            return resp.json().get("classes", {})
+    except:
+        pass
+    return {}
+
+classes_info = fetch_classes_info()
+
+# Sync session_state with backend
+backend_classes = list(classes_info.keys())
+for c in backend_classes:
+    if c not in st.session_state.classes:
+        st.session_state.classes.append(c)
+
 # Sidebar for managing classes
 st.sidebar.header("Manage Classes")
 new_class_name = st.sidebar.text_input("New Class Name")
@@ -24,10 +41,22 @@ if st.sidebar.button("Add Class"):
         st.session_state.classes.append(new_class_name)
         st.session_state.is_trained = False
         st.sidebar.success(f"Class '{new_class_name}' added!")
+        st.rerun()
 
 st.sidebar.write("Current Classes:")
-for cls in st.session_state.classes:
-    st.sidebar.write(f"- {cls}")
+for cls in list(st.session_state.classes):
+    col1, col2 = st.sidebar.columns([3, 1])
+    num_samples = classes_info.get(cls, 0)
+    col1.write(f"- **{cls}** ({num_samples})")
+    if col2.button("Del", key=f"del_{cls}"):
+        try:
+            requests.delete(f"{BACKEND_URL}/class/{cls}")
+        except:
+            pass
+        if cls in st.session_state.classes:
+            st.session_state.classes.remove(cls)
+        st.session_state.is_trained = False
+        st.rerun()
 
 # Main area: Data Collection
 st.header("1. Data Collection")
