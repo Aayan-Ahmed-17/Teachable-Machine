@@ -19,3 +19,12 @@ requirements/
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Frontend Streamlit caches
+frontend/.streamlit/
+
+# Log files
+*.log
+
+# SQLite databases
+*.sqlite

@@ -43,15 +43,31 @@ if st.sidebar.button("Add Class"):
         st.sidebar.success(f"Class '{new_class_name}' added!")
         st.rerun()
 
-st.sidebar.write("Current Classes:")
-for cls in list(st.session_state.classes):
-    col1, col2 = st.sidebar.columns([3, 1])
-    num_samples = classes_info.get(cls, 0)
-    col1.write(f"- **{cls}** ({num_samples})")
-    if col2.button("Del", key=f"del_{cls}"):
+st.sidebar.subheader("Current Classes")
+# Display classes with delete buttons
+if st.session_state.classes:
+    for cls in list(st.session_state.classes):
+        col1, col2 = st.sidebar.columns([3, 1])
+        num_samples = classes_info.get(cls, 0)
+        col1.write(f"- **{cls}** ({num_samples})")
+        if col2.button("Del", key=f"del_{cls}"):
+            try:
+                requests.delete(f"{BACKEND_URL}/class/{cls}")
+            except Exception as e:
+                st.sidebar.error(f"Failed to delete {cls}: {e}")
+            if cls in st.session_state.classes:
+                st.session_state.classes.remove(cls)
+            st.session_state.is_trained = False
+            st.rerun()
+else:
+    st.sidebar.write("_No classes defined_")
+
+# Delete all classes button
+if st.sidebar.button("Delete All Classes"):
+    for cls in list(st.session_state.classes):
         try:
             requests.delete(f"{BACKEND_URL}/class/{cls}")
-        except:
+        except Exception:
             pass
         if cls in st.session_state.classes:
             st.session_state.classes.remove(cls)
@@ -71,7 +87,6 @@ else:
         st.subheader("Webcam Capture")
         camera_img = st.camera_input(f"Capture for {selected_class}", key=f"cam_{selected_class}")
         if camera_img:
-            # Upload to backend
             files = {"image_data": camera_img.getvalue()}
             data = {"class_name": selected_class}
             resp = requests.post(f"{BACKEND_URL}/upload-sample", files=files, data=data)
@@ -80,7 +95,7 @@ else:
                 st.session_state.is_trained = False
             else:
                 st.error("Failed to upload image.")
-                
+        
     with col2:
         st.subheader("File Upload")
         uploaded_files = st.file_uploader(f"Upload files for {selected_class}", accept_multiple_files=True, type=['jpg', 'jpeg', 'png'], key=f"file_{selected_class}")
@@ -96,6 +111,17 @@ else:
                             success_count += 1
                     st.success(f"Successfully uploaded {success_count} files to {selected_class}!")
                     st.session_state.is_trained = False
+    # Show existing samples for selected class
+    class_dir = os.path.join("backend_data", selected_class)
+    if os.path.isdir(class_dir):
+        st.subheader(f"Samples for {selected_class}")
+        img_files = [f for f in os.listdir(class_dir) if f.lower().endswith(('.png','.jpg','.jpeg'))]
+        cols = st.columns(5)
+        for idx, img_name in enumerate(img_files):
+            img_path = os.path.join(class_dir, img_name)
+            with open(img_path, "rb") as img_f:
+                img_bytes = img_f.read()
+            cols[idx % 5].image(img_bytes, caption=img_name, use_column_width=True)
 
 st.divider()
 

@@ -2,7 +2,8 @@ import os
 import uuid
 import shutil
 import pickle
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi.staticfiles import StaticFiles
+
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import torch
@@ -12,6 +13,10 @@ from PIL import Image
 from sklearn.linear_model import LogisticRegression
 
 app = FastAPI(title="Teachable Machine Backend")
+
+# Mount static files for sample images
+app.mount("/data", StaticFiles(directory=DATA_DIR), name="data")
+
 
 # Enable CORS for Streamlit
 app.add_middleware(
@@ -96,7 +101,21 @@ async def delete_class(class_name: str):
         return {"status": "success", "message": f"Class {class_name} deleted."}
     return JSONResponse(status_code=404, content={"status": "error", "message": "Class not found."})
 
-@app.post("/train")
+@app.get("/samples/{class_name}")
+async def get_class_samples(request: Request, class_name: str):
+    """
+    Return list of sample image URLs for a given class.
+    """
+    class_dir = os.path.join(DATA_DIR, class_name)
+    if not os.path.isdir(class_dir):
+        return {"samples": []}
+    files = []
+    base = str(request.base_url).rstrip('/')
+    for f in os.listdir(class_dir):
+        if f.lower().endswith((".png", ".jpg", ".jpeg")):
+            files.append(f"{base}/data/{class_name}/{f}")
+    return {"samples": files}
+
 async def train_model():
     """
     Endpoint to trigger model training.
