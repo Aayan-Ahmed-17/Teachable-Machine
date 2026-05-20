@@ -43,9 +43,10 @@ with col_left:
     
     # Render each class card
     for idx, cls in enumerate(list(st.session_state.classes)):
+        num_samples = classes_info.get(cls, 0)
         with st.container(border=True):
             # Class header: Name and Delete button
-            c_header, c_del = st.columns([4, 1])
+            c_header, c_del = st.columns([5, 1])
             new_name = c_header.text_input(
                 "Class Name", 
                 value=cls, 
@@ -69,14 +70,57 @@ with col_left:
                 st.session_state.is_trained = False
                 st.rerun()
 
+            st.write(f"**Samples:** {num_samples}")
+
             # Input methods: Webcam vs File Upload
             tab_cam, tab_file = st.tabs(["📷 Webcam", "📁 Upload"])
             
             with tab_cam:
-                st.write("Record webcam images...")
+                camera_img = st.camera_input(f"Capture for {cls}", key=f"cam_{cls}_{idx}", label_visibility="collapsed")
+                if camera_img:
+                    files = {"image_data": camera_img.getvalue()}
+                    data = {"class_name": cls}
+                    resp = requests.post(f"{BACKEND_URL}/upload-sample", files=files, data=data)
+                    if resp.status_code == 200:
+                        st.success("Uploaded!")
+                        st.session_state.is_trained = False
+                        st.rerun()
                 
             with tab_file:
-                st.write("Upload file samples...")
+                uploaded_files = st.file_uploader(
+                    "Choose images", 
+                    accept_multiple_files=True, 
+                    type=['jpg', 'jpeg', 'png'], 
+                    key=f"file_{cls}_{idx}",
+                    label_visibility="collapsed"
+                )
+                if uploaded_files:
+                    if st.button("Upload Files", key=f"btn_{cls}_{idx}"):
+                        with st.spinner("Uploading..."):
+                            success_count = 0
+                            for f in uploaded_files:
+                                files = {"image_data": f.getvalue()}
+                                data = {"class_name": cls}
+                                resp = requests.post(f"{BACKEND_URL}/upload-sample", files=files, data=data)
+                                if resp.status_code == 200:
+                                    success_count += 1
+                            st.success(f"Uploaded {success_count} files!")
+                            st.session_state.is_trained = False
+                            st.rerun()
+
+            # Show existing samples via the API
+            try:
+                samples_resp = requests.get(f"{BACKEND_URL}/samples/{cls}")
+                if samples_resp.status_code == 200:
+                    samples = samples_resp.json().get("samples", [])
+                    if samples:
+                        st.write("---")
+                        # Display a scrollable-like grid
+                        cols = st.columns(4)
+                        for s_idx, s_url in enumerate(samples[:8]):  # Show up to 8 previews
+                            cols[s_idx % 4].image(s_url, use_column_width=True)
+            except Exception:
+                pass
 
     # Add Class Button
     if st.button("➕ Add a class"):
