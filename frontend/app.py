@@ -133,8 +133,40 @@ with col_left:
 with col_mid:
     st.header("Training")
     with st.container(border=True):
-        st.subheader("Model Training")
-        st.write("Train your model on the collected classes.")
+        # Check if enough classes have images
+        valid_classes = [c for c, count in classes_info.items() if count > 0]
+        can_train = len(valid_classes) >= 2
+        
+        st.subheader("Train Model")
+        
+        if st.session_state.is_trained:
+            st.info("Model Trained ✅")
+        else:
+            st.warning("Model Not Trained")
+
+        # Advanced Settings Accordion
+        with st.expander("Advanced Settings"):
+            epochs = st.number_input("Epochs", min_value=1, max_value=100, value=50, step=1)
+            batch_size = st.selectbox("Batch Size", [16, 32, 64], index=0)
+            lr = st.selectbox("Learning Rate", [0.0001, 0.001, 0.01, 0.1], index=1)
+
+        # Train Button
+        if not can_train:
+            st.button("Train Model", disabled=True, use_container_width=True)
+            st.caption("⚠️ Add at least 2 classes with image samples to train.")
+        else:
+            if st.button("Train Model", type="primary", use_container_width=True):
+                with st.spinner("Training..."):
+                    try:
+                        resp = requests.post(f"{BACKEND_URL}/train", timeout=120)
+                        if resp.status_code == 200:
+                            st.success("Trained successfully!")
+                            st.session_state.is_trained = True
+                            st.rerun()
+                        else:
+                            st.error(f"Failed: {resp.json().get('message')}")
+                    except Exception as e:
+                        st.error(f"Error: {e}")
 
 # Column 3: Preview
 with col_right:
