@@ -172,6 +172,43 @@ with col_mid:
 with col_right:
     st.header("Preview")
     with st.container(border=True):
-        st.subheader("Inference")
-        st.write("Test your trained model here.")
+        if not st.session_state.is_trained:
+            st.info("Train the model first to enable live predictions.")
+        else:
+            st.subheader("Test Model")
+            tab_test_cam, tab_test_file = st.tabs(["📷 Live Webcam", "📁 Test Image"])
+            
+            test_img_bytes = None
+            
+            with tab_test_cam:
+                test_cam = st.camera_input("Predict Webcam", key="predict_cam_input", label_visibility="collapsed")
+                if test_cam:
+                    test_img_bytes = test_cam.getvalue()
+                    
+            with tab_test_file:
+                test_file = st.file_uploader("Upload Image", type=['jpg', 'jpeg', 'png'], key="predict_file_input", label_visibility="collapsed")
+                if test_file:
+                    test_img_bytes = test_file.getvalue()
+                    st.image(test_img_bytes, use_column_width=True)
+
+            if test_img_bytes:
+                st.write("---")
+                st.subheader("Predictions")
+                with st.spinner("Classifying..."):
+                    try:
+                        resp = requests.post(f"{BACKEND_URL}/predict", files={"image_data": test_img_bytes})
+                        if resp.status_code == 200:
+                            res = resp.json()
+                            pred_class = res.get("prediction")
+                            probs = res.get("probabilities", {})
+                            
+                            # Display prediction confidence bars
+                            for cls_name, prob in probs.items():
+                                pct = prob * 100
+                                st.write(f"**{cls_name}**: {pct:.1f}%")
+                                st.progress(prob)
+                        else:
+                            st.error("Prediction failed.")
+                    except Exception as e:
+                        st.error(f"Error during prediction: {e}")
 
