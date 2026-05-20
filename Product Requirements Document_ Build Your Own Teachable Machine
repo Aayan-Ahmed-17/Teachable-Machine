@@ -1,0 +1,180 @@
+# Product Requirements Document: Build Your Own Teachable Machine
+
+## 1. Project Overview
+
+### 1.1 Objective
+
+The primary objective of this project is to develop a decoupled client-server system that replicates the core functionality and user experience of Google's Teachable Machine for image classification. The system will enable users to define custom categories, collect image datasets via webcam or file uploads, train a machine learning model using transfer learning, and perform real-time predictions with visual feedback. This project serves as a practical blueprint for a full-stack AI development bootcamp, demonstrating the integration of a Streamlit frontend with a FastAPI backend.
+
+### 1.2 Target Audience
+
+This product is designed for students, developers, and researchers interested in understanding and implementing machine learning workflows, particularly in the domain of image classification. It caters to individuals who require a user-friendly interface for rapid prototyping and experimentation with custom image datasets without delving into complex machine learning code.
+
+### 1.3 Core Value Proposition
+
+The core value proposition lies in providing an accessible, interactive, and educational platform for building custom image classification models. By decoupling the frontend and backend, the system offers a robust and scalable architecture, allowing for lightweight client-side interactions and powerful cloud-based backend computations. This approach facilitates rapid iteration, clear separation of concerns, and a practical understanding of modern AI application development.
+
+## 2. System Architecture
+
+The system employs a decoupled architecture consisting of a Streamlit frontend and a FastAPI backend, communicating via standard web channels. This design ensures a responsive user interface while offloading heavy computational tasks to a dedicated backend.
+
+### 2.1 Frontend (Streamlit)
+
+The frontend, built with Streamlit, is responsible for handling all user interface interactions. It will manage the display of the webcam feed, facilitate drag-and-drop file uploads, render action buttons for training and prediction, and visualize output charts. Streamlit will send user inputs and image data to the backend via HTTP requests and receive processed results for display. It will not perform any machine learning computations directly.
+
+### 2.2 Backend (FastAPI)
+
+The backend, implemented using FastAPI, acts as the brain of the application. It will receive images from the Streamlit frontend, save them into dedicated folders based on user-defined classes, and manage the training algorithms. The FastAPI server will host API endpoints for image ingestion, model training, and real-time inference, generating prediction metrics and model files.
+
+### 2.3 Communication Protocol
+
+Communication between the Streamlit frontend and the FastAPI backend will primarily occur over HTTP/HTTPS. The frontend will send image data and training requests to specific backend API endpoints. The backend will respond with status updates, training progress, prediction results, and any necessary error messages. This standard web communication protocol ensures interoperability and scalability.
+
+## 3. Functional Requirements
+
+### 3.1 Phase 1: Data Ingestion & Management
+
+#### 3.1.1 Class Definition
+
+Users shall be able to define and name multiple custom classes (categories) for image classification. Each class will have a dedicated section in the UI for data collection. The system should allow for editing class names and managing class-specific options (e.g., delete, disable).
+
+#### 3.1.2 Webcam Capture
+
+Users shall be able to capture image samples directly from a webcam for each defined class. The system should provide a live webcam feed within the UI and a mechanism to add captured frames as samples to the active class.
+
+#### 3.1.3 File Upload
+
+Users shall be able to upload image files from their local system to populate datasets for each defined class. The system should support drag-and-drop functionality or a file selection dialog for uploading multiple images simultaneously.
+
+#### 3.1.4 Sample Management
+
+Users shall be able to view, review, and manage collected image samples for each class. This includes options to remove individual samples, remove all samples for a class, and potentially download or save samples to cloud storage (e.g., Google Drive).
+
+### 3.2 Phase 2: Machine Learning Backend
+
+#### 3.2.1 Pre-processing Pipeline
+
+The backend shall implement a consistent image pre-processing pipeline. All incoming images, whether from webcam or file uploads, must be resized to 224x224 pixels and normalized according to the default channel parameters required by the chosen transfer learning model. This ensures uniformity and compatibility for model training and inference.
+
+#### 3.2.2 Training Engine (Transfer Learning)
+
+The backend shall incorporate a transfer learning training engine. This engine will utilize a pre-trained backbone model (e.g., MobileNetV3 from PyTorch) and a fast classifier (e.g., Scikit-Learn LogisticRegression). Upon receiving a training request, the backend will process the collected samples, fine-tune the classifier, and generate a trained model file (e.g., `model.pkl`).
+
+#### 3.2.3 Model Persistence
+
+The trained model file (`.pkl`) shall be persistently stored on the backend server. This allows for subsequent inference requests without retraining and enables the model to be exported or reloaded as needed.
+
+### 3.3 Phase 3: Inference & Real-time Prediction
+
+#### 3.3.1 Prediction API
+
+The backend shall expose a `/predict` API endpoint that accepts a single image as input. This endpoint will load the saved model, apply the same pre-processing transformations as during training, extract features, and output the predicted target category along with its percentage probability score.
+
+#### 3.3.2 Live Preview Interface
+
+The frontend shall provide a live preview interface where users can test the trained model in real-time. This interface will display a live webcam feed or allow for uploading new images for immediate prediction. The prediction results will be sent to the frontend for visualization.
+
+#### 3.3.3 Performance Visualization
+
+During live prediction, the frontend shall display performance bar charts or similar visualizations that show the probability scores for each class. This provides immediate feedback on the model's confidence for each predicted category.
+
+### 3.4 Phase 4: System Integration & UI/UX
+
+#### 3.4.1 State Management
+
+The Streamlit frontend shall effectively manage the application state. Specifically, testing utilities or prediction components should remain hidden or disabled until a training execution cycle has been successfully completed. The UI should track and reflect the current state of the model (e.g., untrained, training in progress, trained).
+
+#### 3.4.2 Error Handling
+
+The system shall implement robust error handling mechanisms. In cases of user errors (e.g., attempting to train without sufficient samples, pressing 'Train Model' without a populated class), the system should display clear, readable warning messages to the user instead of crashing. The backend should also gracefully handle unexpected inputs or processing failures.
+
+#### 3.4.3 Advanced Settings (Optional)
+
+An optional 
+section for advanced settings could be implemented, allowing users to configure parameters such as learning rate, epochs, or batch size for the training process. This would provide more control for experienced users.
+
+## 4. Non-Functional Requirements
+
+### 4.1 Performance
+
+- **Training Speed**: The model training process should complete within a reasonable timeframe, ideally within minutes for small to medium-sized datasets, to ensure a responsive user experience.
+- **Prediction Latency**: Real-time predictions should exhibit minimal latency, allowing for smooth and immediate feedback in the live preview interface.
+- **UI Responsiveness**: The Streamlit frontend should remain highly responsive during data collection, training, and prediction phases, providing a fluid user experience.
+
+### 4.2 Scalability
+
+- **Backend Scalability**: The FastAPI backend should be designed to handle an increasing number of concurrent users and training requests. This may involve considerations for containerization (e.g., Docker) and deployment on cloud platforms.
+- **Data Handling**: The system should efficiently manage and store increasing volumes of image data without significant performance degradation.
+
+### 4.3 Reliability
+
+- **System Stability**: The application should be stable and resilient to errors, with appropriate logging and error reporting mechanisms.
+- **Data Integrity**: Collected image samples and trained models should be stored reliably and be recoverable in case of system failures.
+- **Graceful Degradation**: In cases of partial system failures or resource constraints, the application should degrade gracefully, providing informative feedback to the user rather than crashing.
+
+## 5. Technical Specifications
+
+### 5.1 Tech Stack Details
+
+- **Frontend**: Streamlit, React (implied by Vite + React in scaffold options, though not explicitly stated for this project), TypeScript, TailwindCSS.
+- **Backend**: FastAPI, Python 3.8+, Uvicorn.
+- **Machine Learning Libraries**: PyTorch (for MobileNetV3), Scikit-Learn (for LogisticRegression).
+- **Image Processing**: OpenCV or PIL (Pillow) for image resizing and normalization.
+- **Containerization**: Docker and Docker Compose for deployment and environment management.
+
+### 5.2 API Endpoints Summary
+
+| Endpoint             | Method | Description                                                              | Request Body (Example)                               | Response Body (Example)                                  |
+| :------------------- | :----- | :----------------------------------------------------------------------- | :--------------------------------------------------- | :------------------------------------------------------- |
+| `/upload-sample`     | POST   | Accepts an image and class name, saves to backend.                       | `{'class_name': 'cat', 'image_data': <base64_image>}` | `{'status': 'success', 'message': 'Image uploaded'}`     |
+| `/train`             | POST   | Triggers the model training process.                                     | `{}`                                                 | `{'status': 'training_started', 'model_id': 'xyz'}`      |
+| `/predict`           | POST   | Accepts an image, returns prediction and probabilities.                  | `{'image_data': <base64_image>}`                     | `{'prediction': 'cat', 'probabilities': {'cat': 0.95}}}` |
+
+### 5.3 Data Storage Structure
+
+Image samples will be stored in a hierarchical directory structure on the backend server. A root backend folder will contain subfolders for each class, with images stored using unique filenames (e.g., UUIDs) to prevent overwriting.
+
+```
+/backend_data
+├── class_name_1
+│   ├── image_uuid_1.jpg
+│   ├── image_uuid_2.jpg
+│   └── ...
+├── class_name_2
+│   ├── image_uuid_3.jpg
+│   └── ...
+└── models
+    └── trained_model_xyz.pkl
+```
+
+## 6. Milestones & Delivery
+
+### 6.1 Development Sequence
+
+1.  **Milestone 1: Setup FastAPI Workspace & Image Ingestion**
+    -   Create root backend folders.
+    -   Implement `/upload-sample` POST endpoint to accept class name and image, saving to appropriate class folder with unique filenames.
+
+2.  **Milestone 2: Build the Transfer Learning Training Engine**
+    -   Implement `/train` POST endpoint.
+    -   Integrate MobileNetV3 from PyTorch and Scikit-Learn LogisticRegression.
+    -   Process collected samples, train the model, and save `model.pkl`.
+
+3.  **Milestone 3: Build the Inference & Prediction API**
+    -   Implement `/predict` POST endpoint.
+    -   Load `model.pkl`, apply pre-processing, extract features, and output target category with probability score.
+
+4.  **Milestone 4: Connect the Streamlit User Interface**
+    -   Develop Streamlit UI for defining class names, file upload, and webcam input.
+    -   Integrate UI with backend `/upload-sample`, `/train`, and `/predict` endpoints.
+    -   Implement state management to hide testing/prediction until training is complete.
+    -   Display prediction scores and live preview.
+
+### 6.2 Success Criteria
+
+-   The system successfully replicates the core image classification workflow of Google Teachable Machine.
+-   Users can intuitively define classes, collect data, train models, and get real-time predictions.
+-   The frontend and backend communicate seamlessly, demonstrating a robust decoupled architecture.
+-   The application exhibits graceful error handling and maintains stability under various user interactions.
+-   The final solution adheres to the architectural rules outlined in the project guide, including pre-processing uniformity and state management checkpoints.
+
