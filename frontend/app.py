@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import pandas as pd
 import io
+import os
 
 BACKEND_URL = "http://localhost:8000"
 
@@ -12,7 +13,7 @@ st.write("Train a custom image classification model directly in your browser.")
 
 # Initialize session state
 if "classes" not in st.session_state:
-    st.session_state.classes = []
+    st.session_state.classes = ["Class 1", "Class 2"]
 if "is_trained" not in st.session_state:
     st.session_state.is_trained = False
 
