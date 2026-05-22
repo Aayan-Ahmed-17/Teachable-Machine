@@ -6,25 +6,61 @@ __pycache__/
 # Virtual Environments
 venv/
 env/
+.venv/
 .env
 
-# Models and Data
+# Models and Data (runtime generated)
 backend_data/
 *.pkl
+
+# Extra / backup text files
 pdf_text.txt
 
-# Requirements folder
+# Requirements folder (PDF reference, not needed in repo)
 requirements/
 
 # OS generated files
 .DS_Store
 Thumbs.db
+desktop.ini
+*.lnk
+
+# IDE / Editor configs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
 
 # Frontend Streamlit caches
 frontend/.streamlit/
+.streamlit/
+
+# Python packaging
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
 
 # Log files
 *.log
 
 # SQLite databases
 *.sqlite
+*.db
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Misc
+*.bak
+*.tmp
+*.temp
+*.orig
