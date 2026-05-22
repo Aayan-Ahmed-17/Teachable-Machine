@@ -1,8 +1,6 @@
 import streamlit as st
 import requests
-import pandas as pd
-import io
-import os
+import time
 
 BACKEND_URL = "http://localhost:8000"
 
@@ -16,13 +14,18 @@ if "classes" not in st.session_state:
     st.session_state.classes = ["Class 1", "Class 2"]
 if "is_trained" not in st.session_state:
     st.session_state.is_trained = False
+# Track which camera captures have already been uploaded to prevent re-upload loops
+if "uploaded_cam_keys" not in st.session_state:
+    st.session_state.uploaded_cam_keys = set()
 
+@st.cache_data(ttl=5)
 def fetch_classes_info():
+    """Fetch class info from backend. Cached for 5 seconds to avoid spamming."""
     try:
-        resp = requests.get(f"{BACKEND_URL}/classes/info")
+        resp = requests.get(f"{BACKEND_URL}/classes/info", timeout=5)
         if resp.status_code == 200:
             return resp.json().get("classes", {})
-    except:
+    except Exception:
         pass
     return {}
 
@@ -62,12 +65,13 @@ with col_left:
                 
             if c_del.button("🗑️", key=f"del_{cls}_{idx}"):
                 try:
-                    requests.delete(f"{BACKEND_URL}/class/{cls}")
+                    requests.delete(f"{BACKEND_URL}/class/{cls}", timeout=5)
                 except Exception:
                     pass
                 if cls in st.session_state.classes:
                     st.session_state.classes.remove(cls)
                 st.session_state.is_trained = False
+                fetch_classes_info.clear()
                 st.rerun()
 
             st.write(f"**Samples:** {num_samples}")
@@ -76,15 +80,31 @@ with col_left:
             tab_cam, tab_file = st.tabs(["📷 Webcam", "📁 Upload"])
             
             with tab_cam:
-                camera_img = st.camera_input(f"Capture for {cls}", key=f"cam_{cls}_{idx}", label_visibility="collapsed")
+                cam_key = f"cam_{cls}_{idx}"
+                camera_img = st.camera_input(
+                    f"Capture for {cls}",
+                    key=cam_key,
+                    label_visibility="collapsed"
+                )
                 if camera_img:
-                    files = {"image_data": camera_img.getvalue()}
-                    data = {"class_name": cls}
-                    resp = requests.post(f"{BACKEND_URL}/upload-sample", files=files, data=data)
-                    if resp.status_code == 200:
-                        st.success("Uploaded!")
-                        st.session_state.is_trained = False
-                        st.rerun()
+                    # Use file id to deduplicate — only upload if this exact capture is new
+                    capture_id = camera_img.file_id
+                    if capture_id not in st.session_state.uploaded_cam_keys:
+                        files = {"image_data": ("capture.jpg", camera_img.getvalue(), "image/jpeg")}
+                        data = {"class_name": cls}
+                        resp = requests.post(
+                            f"{BACKEND_URL}/upload-sample",
+                            files=files,
+                            data=data,
+                            timeout=10,
+                        )
+                        if resp.status_code == 200:
+                            st.session_state.uploaded_cam_keys.add(capture_id)
+                            st.session_state.is_trained = False
+                            fetch_classes_info.clear()
+                            st.success("Uploaded!")
+                    else:
+                        st.info("✅ Image already uploaded. Take a new photo to add more.")
                 
             with tab_file:
                 uploaded_files = st.file_uploader(
@@ -99,18 +119,24 @@ with col_left:
                         with st.spinner("Uploading..."):
                             success_count = 0
                             for f in uploaded_files:
-                                files = {"image_data": f.getvalue()}
+                                files = {"image_data": (f.name, f.getvalue(), f.type)}
                                 data = {"class_name": cls}
-                                resp = requests.post(f"{BACKEND_URL}/upload-sample", files=files, data=data)
+                                resp = requests.post(
+                                    f"{BACKEND_URL}/upload-sample",
+                                    files=files,
+                                    data=data,
+                                    timeout=10,
+                                )
                                 if resp.status_code == 200:
                                     success_count += 1
                             st.success(f"Uploaded {success_count} files!")
                             st.session_state.is_trained = False
+                            fetch_classes_info.clear()
                             st.rerun()
 
             # Show existing samples via the API
             try:
-                samples_resp = requests.get(f"{BACKEND_URL}/samples/{cls}")
+                samples_resp = requests.get(f"{BACKEND_URL}/samples/{cls}", timeout=5)
                 if samples_resp.status_code == 200:
                     samples = samples_resp.json().get("samples", [])
                     if samples:
@@ -118,7 +144,7 @@ with col_left:
                         # Display a scrollable-like grid
                         cols = st.columns(4)
                         for s_idx, s_url in enumerate(samples[:8]):  # Show up to 8 previews
-                            cols[s_idx % 4].image(s_url, use_column_width=True)
+                            cols[s_idx % 4].image(s_url, use_container_width=True)
             except Exception:
                 pass
 
@@ -162,6 +188,7 @@ with col_mid:
                         if resp.status_code == 200:
                             st.success("Trained successfully!")
                             st.session_state.is_trained = True
+                            fetch_classes_info.clear()
                             st.rerun()
                         else:
                             st.error(f"Failed: {resp.json().get('message')}")
@@ -181,22 +208,35 @@ with col_right:
             test_img_bytes = None
             
             with tab_test_cam:
-                test_cam = st.camera_input("Predict Webcam", key="predict_cam_input", label_visibility="collapsed")
+                test_cam = st.camera_input(
+                    "Predict Webcam",
+                    key="predict_cam_input",
+                    label_visibility="collapsed",
+                )
                 if test_cam:
                     test_img_bytes = test_cam.getvalue()
                     
             with tab_test_file:
-                test_file = st.file_uploader("Upload Image", type=['jpg', 'jpeg', 'png'], key="predict_file_input", label_visibility="collapsed")
+                test_file = st.file_uploader(
+                    "Upload Image",
+                    type=['jpg', 'jpeg', 'png'],
+                    key="predict_file_input",
+                    label_visibility="collapsed",
+                )
                 if test_file:
                     test_img_bytes = test_file.getvalue()
-                    st.image(test_img_bytes, use_column_width=True)
+                    st.image(test_img_bytes, use_container_width=True)
 
             if test_img_bytes:
                 st.write("---")
                 st.subheader("Predictions")
                 with st.spinner("Classifying..."):
                     try:
-                        resp = requests.post(f"{BACKEND_URL}/predict", files={"image_data": test_img_bytes})
+                        resp = requests.post(
+                            f"{BACKEND_URL}/predict",
+                            files={"image_data": ("test.jpg", test_img_bytes, "image/jpeg")},
+                            timeout=30,
+                        )
                         if resp.status_code == 200:
                             res = resp.json()
                             pred_class = res.get("prediction")
@@ -211,4 +251,3 @@ with col_right:
                             st.error("Prediction failed.")
                     except Exception as e:
                         st.error(f"Error during prediction: {e}")
-
