@@ -37,12 +37,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-DATA_DIR = "backend_data"
-MODELS_DIR = os.path.join(DATA_DIR, "models")
-
-# Ensure base directories exist
-os.makedirs(DATA_DIR, exist_ok=True)
-os.makedirs(MODELS_DIR, exist_ok=True)
 
 # Machine Learning Setup
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -65,6 +59,11 @@ def extract_features(img_path):
         features = backbone(input_batch)
     features = torch.nn.functional.adaptive_avg_pool2d(features, (1, 1))
     return features.flatten().cpu().numpy()
+
+@app.get("/health")
+async def health_check():
+    """Simple health check endpoint."""
+    return {"status": "ok"}
 
 @app.post("/upload-sample")
 async def upload_sample(class_name: str = Form(...), image_data: UploadFile = File(...)):
